@@ -18,7 +18,7 @@ export async function revokeConsent(slug: string) {
 
   // 1. Fetch Portfolio Entry
   const { data: entry, error: entryErr } = await supabase.from('portfolio_entries')
-    .select('id, project_id, organization_id')
+    .select('id, project_id, organization_id, hero_asset_id')
     .eq('slug', slug).single();
 
   if (entryErr || !entry) {
