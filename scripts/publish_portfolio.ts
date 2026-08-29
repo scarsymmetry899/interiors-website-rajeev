@@ -16,9 +16,9 @@ export async function publishPortfolio(slug: string) {
   }
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // 1. Fetch Portfolio Entry & Project
+  // 1. Fetch Portfolio Entry
   const { data: entry, error: entryErr } = await supabase.from('portfolio_entries')
-    .select('id, status, project_id, projects!inner(publication_consent_status)')
+    .select('id, status, project_id, organization_id')
     .eq('slug', slug).single();
 
   if (entryErr || !entry) {
@@ -31,10 +31,18 @@ export async function publishPortfolio(slug: string) {
     return;
   }
 
-  // 2. Enforce Publication Consent
-  const consent = (entry.projects as any)?.publication_consent_status;
-  if (consent !== 'granted') {
-    console.error(`❌ BLOCKED: Portfolio publication consent not recorded (Current status: ${consent || 'missing'})`);
+  // 2. Enforce Publication Consent from 'consents' table
+  const { data: consentRecord } = await supabase.from('consents')
+    .select('status, granted_at')
+    .eq('project_id', entry.project_id)
+    .eq('consent_type', 'portfolio_publication')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  const consentStatus = consentRecord?.status || 'missing';
+  if (consentStatus !== 'granted') {
+    console.error(`❌ BLOCKED: Portfolio publication consent not recorded (Current authoritative status: ${consentStatus})`);
     return;
   }
 

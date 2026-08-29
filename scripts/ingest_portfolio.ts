@@ -47,8 +47,7 @@ const SectionSchema = z.object({
 
 const ProjectSchema = z.object({
   name: z.string(),
-  status: z.enum(['lead', 'proposal', 'active', 'completed', 'archived']).default('completed'),
-  publication_consent_status: z.enum(['pending', 'granted', 'denied', 'revoked']).default('pending')
+  status: z.enum(['lead', 'proposal', 'active', 'completed', 'archived']).default('completed')
 });
 
 const PortfolioSchema = z.object({
@@ -178,8 +177,7 @@ export async function ingestPortfolio(payloadPath: string, isDryRun: boolean = f
       project_id = existingProj.id;
     } else {
       const { data: newProj, error: pErr } = await supabase.from('projects').insert({
-        organization_id: orgId, name: data.project.name, status: data.project.status,
-        publication_consent_status: data.project.publication_consent_status
+        organization_id: orgId, name: data.project.name, status: data.project.status
       }).select('id').single();
       if (pErr) throw pErr;
       project_id = newProj.id;
