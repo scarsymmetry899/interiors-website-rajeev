@@ -30,7 +30,7 @@ export const getPublishedPortfolioEntries = async (): Promise<PortfolioEntry[]> 
   const { data, error } = await supabase
     .from('portfolio_entries')
     .select(`
-      id, slug, title, location_display, property_type, style, area_display, completion_year, featured, status, index_layout_variant, seo_title, seo_description
+      id, slug, title, location_display, property_type, style, area_display, completion_year, featured, status, seo_title, seo_description
     `)
     .eq('status', 'published')
     .order('completion_year', { ascending: false });
@@ -44,7 +44,6 @@ export const getPublishedPortfolioEntries = async (): Promise<PortfolioEntry[]> 
   const rows = data as any[];
   return rows.map(entry => ({
     ...entry,
-    index_layout_variant: entry.index_layout_variant as any, // Typed internally
     hero_asset: undefined // We'd join portfolio_entry_assets in a real complete query
   }));
 };
@@ -75,7 +74,6 @@ export const getPortfolioEntryBySlug = async (slug: string): Promise<PortfolioEn
   const row = data as any;
   return {
     ...row,
-    index_layout_variant: row.index_layout_variant as any,
     sections: (row.portfolio_sections || []).sort((a: any, b: any) => a.display_order - b.display_order) as any,
   };
 };

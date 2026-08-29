@@ -138,7 +138,7 @@ export async function ingestPortfolio(payloadPath: string, isDryRun: boolean = f
     const stat = fs.statSync(absolute_path);
     let width, height, aspect_ratio;
     
-    if (asset.asset_type === 'image') {
+    if (asset.asset_type === 'photo' || asset.asset_type === 'before_photo' || asset.asset_type === 'after_photo' || asset.asset_type === 'render') {
       const metadata = await sharp(absolute_path).metadata();
       width = metadata.width;
       height = metadata.height;

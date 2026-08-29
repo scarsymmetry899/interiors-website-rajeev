@@ -21,7 +21,7 @@ const formSchema = z.object({
 });
 
 import { createHmac } from 'crypto';
-import { getPublicClient } from '@/services/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 // Helper to hash IP for privacy using HMAC
 function hashIp(ip: string) {
@@ -53,8 +53,8 @@ export async function submitConsultationAction(prevState: any, formData: FormDat
     const maxRequests = isNaN(maxRequestsRaw) ? 3 : maxRequestsRaw;
     const windowMinutes = isNaN(windowMinutesRaw) ? 60 : windowMinutesRaw;
 
-    const supabase = getPublicClient();
-    const { data: allowed, error: rateLimitErr } = await supabase.rpc('check_rate_limit', {
+    const supabase = await createClient();
+    const { data: allowed, error: rateLimitErr } = await supabase.rpc('check_rate_limit' as any, {
       p_ip_hash: ipHash,
       p_action: 'consultation_submission',
       p_max_requests: maxRequests,
