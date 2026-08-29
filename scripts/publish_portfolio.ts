@@ -16,27 +16,32 @@ export async function publishPortfolio(slug: string) {
   }
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // 1. Fetch Portfolio Entry
+  // 1. Fetch Portfolio Entry & Project
   const { data: entry, error: entryErr } = await supabase.from('portfolio_entries')
-    .select('id, status, project_id')
+    .select('id, status, project_id, projects!inner(publication_consent_status)')
     .eq('slug', slug).single();
 
   if (entryErr || !entry) {
     console.error('❌ Portfolio entry not found.');
     return;
   }
+  
   if (entry.status === 'published') {
     console.log('⚠️ Portfolio is already published.');
     return;
   }
 
-  console.log('1. Validated portfolio status (Draft/Review).');
+  // 2. Enforce Publication Consent
+  const consent = (entry.projects as any)?.publication_consent_status;
+  if (consent !== 'granted') {
+    console.error(`❌ BLOCKED: Portfolio publication consent not recorded (Current status: ${consent || 'missing'})`);
+    return;
+  }
 
-  // 2. Identify candidate assets (those linked via portfolio_entry_assets, hero_asset_id, etc.)
-  // For Phase 1 script, we'll fetch all private assets associated with the project and promote the ones 
-  // currently linked to this portfolio entry.
-  
-  const { data: linkedAssets, error: linkErr } = await supabase.from('portfolio_entry_assets')
+  console.log('1. Validated portfolio status and explicit publication consent.');
+
+  // 3. Identify required assets for the public rendering
+  const { data: linkedAssets } = await supabase.from('portfolio_entry_assets')
     .select('asset_id')
     .eq('portfolio_entry_id', entry.id);
 
@@ -51,46 +56,100 @@ export async function publishPortfolio(slug: string) {
   });
 
   if (assetIdsToPromote.size > 0) {
-    console.log(`2. Identified ${assetIdsToPromote.size} approved portfolio candidate assets.`);
+    console.log(`2. Identified ${assetIdsToPromote.size} required portfolio assets.`);
     
-    // Fetch the actual project_assets records
-    const { data: assets } = await supabase.from('project_assets').select('*').in('id', Array.from(assetIdsToPromote));
+    // Fetch the actual master project_assets records
+    const { data: assets } = await supabase.from('project_assets')
+      .select('*')
+      .in('id', Array.from(assetIdsToPromote));
     
+    // Validate Publication Intent (No internal-only assets allowed)
+    const unauthorizedAssets = (assets || []).filter(a => a.publication_intent !== 'portfolio_candidate');
+    if (unauthorizedAssets.length > 0) {
+      console.error(`❌ BLOCKED: Public sections reference internal-only assets.`);
+      unauthorizedAssets.forEach(a => console.error(`   - Asset ID ${a.id} (${a.file_name}) is marked as ${a.publication_intent}`));
+      console.error(`   You must either remove them from the public section or update their publication_intent to 'portfolio_candidate'.`);
+      return;
+    }
+
+    console.log('3. All referenced assets are authorized for public promotion.');
+
+    // 4. Create Public Derivatives
     for (const asset of (assets || [])) {
       if (asset.bucket_id === 'studio-internal') {
-        console.log(`   -> Promoting asset: ${asset.file_path}`);
+        console.log(`   -> Generating public derivative for: ${asset.file_path}`);
         
-        // 3. Promote to portfolio-public Storage
-        // Supabase storage JS client doesn't support cross-bucket copy, so we download & upload
+        // Download Master
         const { data: fileData, error: dlErr } = await supabase.storage.from('studio-internal').download(asset.file_path);
         if (dlErr || !fileData) {
-          console.error(`      ❌ Failed to download from internal storage:`, dlErr);
-          continue;
+          console.error(`      ❌ Failed to download master from internal storage:`, dlErr);
+          return; // Fail safe
         }
 
-        const { error: ulErr } = await supabase.storage.from('portfolio-public').upload(asset.file_path, fileData, {
+        const derivativePath = `${slug}/public-derivatives/${asset.id}-${asset.file_name}`;
+
+        // Upload Derivative
+        const { error: ulErr } = await supabase.storage.from('portfolio-public').upload(derivativePath, fileData, {
           contentType: asset.mime_type,
           upsert: true
         });
 
         if (ulErr) {
-          console.error(`      ❌ Failed to upload to public storage:`, ulErr);
-          continue;
+          console.error(`      ❌ Failed to upload derivative to public storage:`, ulErr);
+          return; // Fail safe
         }
 
-        // 4. Update asset relationship in DB
-        await supabase.from('project_assets').update({
+        // Create new project_assets record for the derivative, linking back to the master
+        const { data: derivativeAsset, error: newAssetErr } = await supabase.from('project_assets').insert({
+          organization_id: asset.organization_id,
+          project_id: asset.project_id,
+          room_id: asset.room_id,
+          file_path: derivativePath,
           bucket_id: 'portfolio-public',
-          visibility: 'public'
-        }).eq('id', asset.id);
+          file_name: asset.file_name,
+          file_size: asset.file_size,
+          mime_type: asset.mime_type,
+          width: asset.width,
+          height: asset.height,
+          asset_type: asset.asset_type,
+          visibility: 'public', // Derivative is public
+          publication_intent: 'portfolio_candidate',
+          alt_text: asset.alt_text,
+          caption: asset.caption,
+          source_asset_id: asset.id // LINEAGE: Master reference
+        }).select('id').single();
+
+        if (newAssetErr) {
+          console.error(`      ❌ Failed to create derivative database record:`, newAssetErr);
+          return; // Fail safe
+        }
+
+        // 5. Update references in portfolio_entry_assets to point to the derivative
+        await supabase.from('portfolio_entry_assets')
+          .update({ asset_id: derivativeAsset.id })
+          .eq('portfolio_entry_id', entry.id)
+          .eq('asset_id', asset.id);
+
+        // Update references in before/after pairs
+        await supabase.from('project_asset_pairs')
+          .update({ before_asset_id: derivativeAsset.id })
+          .eq('project_id', entry.project_id)
+          .eq('before_asset_id', asset.id);
+          
+        await supabase.from('project_asset_pairs')
+          .update({ after_asset_id: derivativeAsset.id })
+          .eq('project_id', entry.project_id)
+          .eq('after_asset_id', asset.id);
+
+        console.log(`      ✅ Derivative created and relationships updated (Master remains untouched).`);
       }
     }
   }
 
-  // 5. Change portfolio status
+  // 6. Change portfolio status
   await supabase.from('portfolio_entries').update({ status: 'published' }).eq('id', entry.id);
   
-  console.log(`\n✅ Successfully published portfolio entry: ${slug}`);
+  console.log(`\n🎉 Successfully published portfolio entry: ${slug}`);
 }
 
 // CLI Execution Support

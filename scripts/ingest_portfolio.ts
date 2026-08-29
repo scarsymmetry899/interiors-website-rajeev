@@ -48,6 +48,7 @@ const SectionSchema = z.object({
 const ProjectSchema = z.object({
   name: z.string(),
   status: z.enum(['lead', 'proposal', 'active', 'completed', 'archived']).default('completed'),
+  publication_consent_status: z.enum(['pending', 'granted', 'denied', 'revoked']).default('pending')
 });
 
 const PortfolioSchema = z.object({
@@ -177,7 +178,8 @@ export async function ingestPortfolio(payloadPath: string, isDryRun: boolean = f
       project_id = existingProj.id;
     } else {
       const { data: newProj, error: pErr } = await supabase.from('projects').insert({
-        organization_id: orgId, name: data.project.name, status: data.project.status
+        organization_id: orgId, name: data.project.name, status: data.project.status,
+        publication_consent_status: data.project.publication_consent_status
       }).select('id').single();
       if (pErr) throw pErr;
       project_id = newProj.id;
@@ -222,7 +224,8 @@ export async function ingestPortfolio(payloadPath: string, isDryRun: boolean = f
         width: asset.width,
         height: asset.height,
         asset_type: asset.asset_type,
-        visibility: 'private', // Enforce private on ingest. Promotion changes this to public.
+        visibility: 'private', // Master is private
+        publication_intent: asset.publication_intent,
         alt_text: asset.alt_text,
         caption: asset.caption
       }, { onConflict: 'project_id,file_path' }).select('id').single();
