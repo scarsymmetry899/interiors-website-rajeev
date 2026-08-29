@@ -29,24 +29,41 @@ export async function revokeConsent(slug: string) {
   // 2. Set Portfolio Status to Draft
   await supabase.from('portfolio_entries').update({ status: 'draft' }).eq('id', entry.id);
 
-  // 3. Delete Public Derivatives
-  const { data: publicDerivatives } = await supabase.from('project_assets')
-    .select('id, file_path')
-    .eq('project_id', entry.project_id)
-    .eq('bucket_id', 'portfolio-public')
-    .eq('visibility', 'public');
-
-  if (publicDerivatives && publicDerivatives.length > 0) {
-    const filePaths = publicDerivatives.map(d => d.file_path);
-    const ids = publicDerivatives.map(d => d.id);
-
-    // Physically delete from Storage
-    const { error: storageErr } = await supabase.storage.from('portfolio-public').remove(filePaths);
-    if (storageErr) console.error('⚠️ Failed to physically delete some public assets from storage:', storageErr);
+  // 3. Delete Public Derivatives explicitly linked to this portfolio entry
+  const { data: linkedAssets } = await supabase.from('portfolio_entry_assets')
+    .select('asset_id')
+    .eq('portfolio_entry_id', entry.id);
     
-    // Delete database records
-    await supabase.from('project_assets').delete().in('id', ids);
-    console.log(`✅ Deleted ${ids.length} public derivatives from Storage and Database.`);
+  const assetIds = new Set<string>();
+  linkedAssets?.forEach(a => assetIds.add(a.asset_id));
+  if (entry.hero_asset_id) assetIds.add(entry.hero_asset_id);
+
+  if (assetIds.size > 0) {
+    const { data: publicDerivatives } = await supabase.from('project_assets')
+      .select('id, file_path')
+      .in('id', Array.from(assetIds))
+      .eq('bucket_id', 'portfolio-public')
+      .eq('visibility', 'public');
+
+    if (publicDerivatives && publicDerivatives.length > 0) {
+      const filePaths = publicDerivatives.map(d => d.file_path);
+      const ids = publicDerivatives.map(d => d.id);
+
+      // Unlink from portfolio entry first to satisfy foreign key constraints before deletion
+      await supabase.from('portfolio_entry_assets').delete().eq('portfolio_entry_id', entry.id).in('asset_id', ids);
+      
+      if (entry.hero_asset_id && ids.includes(entry.hero_asset_id)) {
+        await supabase.from('portfolio_entries').update({ hero_asset_id: null }).eq('id', entry.id);
+      }
+
+      // Physically delete from Storage
+      const { error: storageErr } = await supabase.storage.from('portfolio-public').remove(filePaths);
+      if (storageErr) console.error('⚠️ Failed to physically delete some public assets from storage:', storageErr);
+      
+      // Delete database records
+      await supabase.from('project_assets').delete().in('id', ids);
+      console.log(`✅ Deleted ${ids.length} public derivatives tightly scoped to this portfolio entry.`);
+    }
   }
 
   // 4. Update Consent Record to Revoked (Audit Trail)
