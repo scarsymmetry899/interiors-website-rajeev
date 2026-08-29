@@ -46,15 +46,19 @@ export async function submitConsultationAction(prevState: any, formData: FormDat
     const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
     const ipHash = hashIp(ip);
     
-    const maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '3', 10);
-    const windowInterval = process.env.RATE_LIMIT_WINDOW || '1 hour';
+    // Server-side validation of config values with safe fallbacks
+    const maxRequestsRaw = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '3', 10);
+    const windowMinutesRaw = parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || '60', 10);
+    
+    const maxRequests = isNaN(maxRequestsRaw) ? 3 : maxRequestsRaw;
+    const windowMinutes = isNaN(windowMinutesRaw) ? 60 : windowMinutesRaw;
 
     const supabase = getPublicClient();
     const { data: allowed, error: rateLimitErr } = await supabase.rpc('check_rate_limit', {
       p_ip_hash: ipHash,
       p_action: 'consultation_submission',
       p_max_requests: maxRequests,
-      p_window_interval: windowInterval
+      p_window_minutes: windowMinutes
     });
 
     if (rateLimitErr) {

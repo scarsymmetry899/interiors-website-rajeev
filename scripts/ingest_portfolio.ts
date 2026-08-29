@@ -22,11 +22,11 @@ const RoomSchema = z.object({
 const AssetSchema = z.object({
   asset_key: z.string(),
   local_path: z.string(),
-  asset_type: z.enum(['image', 'video', 'document', 'model']).default('image'),
+  asset_type: z.enum(['photo', 'before_photo', 'after_photo', 'render', 'floor_plan', 'drawing', 'moodboard', 'material_detail', 'video']).default('photo'),
   room: z.string().optional(), // room_slug
   alt_text: z.string().optional(),
   caption: z.string().optional(),
-  visibility: z.enum(['public', 'private', 'client_only']).default('private'),
+  publication_intent: z.enum(['internal', 'portfolio_candidate']).default('internal'),
   layout_role: z.enum(['hero_landscape', 'full_bleed', 'wide', 'portrait', 'diptych', 'triptych', 'detail', 'room_hero', 'before_after', 'gallery']).optional()
 });
 
@@ -146,7 +146,8 @@ export async function ingestPortfolio(payloadPath: string, isDryRun: boolean = f
     }
 
     const mime_type = mime.lookup(absolute_path) || 'application/octet-stream';
-    const bucket_id = asset.visibility === 'public' ? 'portfolio-public' : 'studio-internal';
+    // ALWAYS ingest to studio-internal. Promotion to portfolio-public happens on publish.
+    const bucket_id = 'studio-internal';
     const storage_path = `${data.portfolio.slug}/${asset.asset_key}`; // simple path
 
     processedAssets[asset.asset_key] = {
@@ -221,7 +222,7 @@ export async function ingestPortfolio(payloadPath: string, isDryRun: boolean = f
         width: asset.width,
         height: asset.height,
         asset_type: asset.asset_type,
-        visibility: asset.visibility,
+        visibility: 'private', // Enforce private on ingest. Promotion changes this to public.
         alt_text: asset.alt_text,
         caption: asset.caption
       }, { onConflict: 'project_id,file_path' }).select('id').single();
