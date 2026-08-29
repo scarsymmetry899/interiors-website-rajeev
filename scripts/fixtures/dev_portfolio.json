@@ -1,0 +1,58 @@
+{
+  "projects": [
+    {
+      "slug": "the-glass-pavilion",
+      "title": "The Glass Pavilion",
+      "subtitle": "A study in transparency and restraint.",
+      "location_display": "Mumbai",
+      "property_type": "Residential",
+      "style": "Modern",
+      "area_display": "6,500 sq ft",
+      "completion_year": 2025,
+      "scope_display": "Architecture & Interior Styling",
+      "featured": true,
+      "status": "published",
+      "index_layout_variant": "feature_landscape",
+      "seo_title": "The Glass Pavilion | Residential Project",
+      "seo_description": "A study in transparency and restraint located in Mumbai.",
+      "hero_asset": { "id": "a1", "url": "/images/hero.jpg" },
+      "credits": {
+        "Lead Designer": "Jane Doe",
+        "Architecture": "Studio Name",
+        "Photography": "John Smith"
+      },
+      "sections": [
+        {
+          "id": "s1",
+          "section_type": "intro",
+          "display_order": 1,
+          "title": "The Brief",
+          "body": "Our clients envisioned a retreat that blurred the boundaries between the lush tropical exterior and the interior living spaces. The challenge was to maintain privacy while maximizing transparency, resulting in a material palette rooted in honesty—exposed concrete, natural travertine, and untreated timber."
+        },
+        {
+          "id": "s2",
+          "section_type": "room",
+          "display_order": 2,
+          "title": "01 Living",
+          "body": "The living space acts as a central volume, anchored by a monolithic concrete fireplace. Furniture was kept intentionally low-slung to avoid obstructing the garden vistas.",
+          "configuration": { "layout": "standard" },
+          "assets": [
+            { "id": "a2", "url": "/images/project1.jpg", "alt_text": "Living Room" },
+            { "id": "a3", "url": "/images/project3.jpg", "alt_text": "Living Detail" }
+          ]
+        },
+        {
+          "id": "s3",
+          "section_type": "before_after",
+          "display_order": 3,
+          "title": "The Transformation",
+          "configuration": { "mode": "slider" },
+          "assets": [
+            { "id": "a4", "url": "/images/project2.jpg", "alt_text": "Before" },
+            { "id": "a5", "url": "/images/project1.jpg", "alt_text": "After" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -6,22 +6,25 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
   
-  --color-brand: #1a1a1a;
-  --color-brand-muted: #4a4a4a;
-  --color-surface: #f7f7f5;
-  --color-surface-hover: #ebebeb;
+  /* Palette: Warm architectural neutrals */
+  --color-brand-bone: #f8f7f4;
+  --color-brand-stone: #e8e6e1;
+  --color-brand-sand: #d1cec7;
+  --color-brand-taupe: #a39f98;
+  --color-brand-charcoal: #2a2928;
+  --color-brand-ink: #141413;
 }
 
 :root {
-  --background: #fdfdfc;
-  --foreground: #1c1c1c;
+  --background: var(--color-brand-bone);
+  --foreground: var(--color-brand-ink);
 }
 
 @layer base {
   body {
     background-color: var(--background);
     color: var(--foreground);
-    @apply font-sans antialiased;
+    @apply font-sans antialiased selection:bg-brand-taupe selection:text-brand-bone;
   }
 
   h1, h2, h3, h4, h5, h6 {
