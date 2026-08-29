@@ -18,12 +18,16 @@ export function Navigation() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-500 ${
-        isScrolled ? 'bg-brand-bone/90 backdrop-blur-md border-b border-brand-stone/50' : 'bg-transparent text-brand-bone'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        isMobileMenuOpen 
+          ? 'h-screen bg-brand-bone text-brand-ink' 
+          : isScrolled 
+            ? 'bg-brand-bone/90 backdrop-blur-md border-b border-brand-stone/50' 
+            : 'bg-transparent text-brand-bone'
       }`}
     >
       <div className="max-w-screen-2xl mx-auto px-6 md:px-12 h-24 flex items-center justify-between">
-        <Link href="/" className="z-50">
+        <Link href="/" className="z-50" onClick={() => setIsMobileMenuOpen(false)}>
           <span className={`text-2xl font-serif tracking-wide transition-colors duration-500 ${isScrolled || isMobileMenuOpen ? 'text-brand-ink' : 'text-brand-bone'}`}>
             STUDIO NAME
           </span>
@@ -62,9 +66,9 @@ export function Navigation() {
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-brand-bone z-40 flex flex-col justify-center px-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-24 bottom-0 left-0 right-0 bg-brand-bone z-40 flex flex-col justify-center px-6 pb-24"
         >
           <nav className="flex flex-col space-y-8 text-4xl font-serif text-brand-ink">
             <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>Projects</Link>

@@ -184,7 +184,7 @@ export default function Home() {
                     src={step.img} 
                     alt={step.title} 
                     fill 
-                    className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                    className="object-cover grayscale-0 md:grayscale md:group-hover:grayscale-0 transition-all duration-700"
                   />
                 </div>
                 <h3 className="text-xl font-serif text-brand-ink">{step.title}</h3>
