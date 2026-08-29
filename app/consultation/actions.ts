@@ -20,8 +20,13 @@ const formSchema = z.object({
   message: z.string().optional(),
 });
 
-// Simple in-memory rate limiter (per IP)
-const rateLimitMap = new Map<string, number[]>();
+import { createHash } from 'crypto';
+import { getPublicClient } from '@/services/supabase';
+
+// Helper to hash IP for privacy
+function hashIp(ip: string) {
+  return createHash('sha256').update(ip + process.env.NEXT_PUBLIC_SUPABASE_URL).digest('hex');
+}
 
 export async function submitConsultationAction(prevState: any, formData: FormData) {
   try {
@@ -35,14 +40,23 @@ export async function submitConsultationAction(prevState: any, formData: FormDat
     // 2. Rate Limiting check (Max 3 submissions per IP per hour)
     const headerList = await headers();
     const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
-    const now = Date.now();
-    const requests = (rateLimitMap.get(ip) || []).filter(time => now - time < 3600000); // 1 hour window
-    if (requests.length >= 3) {
-      console.warn(`Rate limit exceeded for IP: ${ip}`);
+    const ipHash = hashIp(ip);
+    
+    const supabase = getPublicClient();
+    const { data: allowed, error: rateLimitErr } = await supabase.rpc('check_rate_limit', {
+      p_ip_hash: ipHash,
+      p_action: 'consultation_submission',
+      p_max_requests: 3,
+      p_window_interval: '1 hour'
+    });
+
+    if (rateLimitErr) {
+      console.error('Rate Limit RPC Error:', rateLimitErr);
+      // Fail open if the RPC itself errors (or closed, depending on strictness - we'll fail open so valid users aren't blocked by DB errors)
+    } else if (!allowed) {
+      console.warn(`Rate limit exceeded for IP Hash: ${ipHash}`);
       return { success: false, error: 'Too many submissions. Please try again later.' };
     }
-    requests.push(now);
-    rateLimitMap.set(ip, requests);
 
     // 3. Validation
     const rawData = Object.fromEntries(formData.entries());
