@@ -8,7 +8,7 @@ dotenv.config({ path: resolve(process.cwd(), '.env.local') });
 // Schema definitions
 const AssetSchema = z.object({
   id: z.string(), // Stable reference for idempotency
-  url: z.string().url(),
+  url: z.string(), // Allowing relative paths like /images/project1.jpg for Phase 1
   width: z.number().optional(),
   height: z.number().optional(),
   alt_text: z.string().optional(),
@@ -46,12 +46,12 @@ const PortfolioImportSchema = z.object({
   }))
 });
 
-export async function ingestPortfolio(jsonPayload: any) {
-  console.log('Validating payload...');
+export async function ingestPortfolio(jsonPayload: any, isDryRun: boolean = false) {
+  console.log(`Validating payload... ${isDryRun ? '(DRY RUN)' : ''}`);
   const parsed = PortfolioImportSchema.safeParse(jsonPayload);
   
   if (!parsed.success) {
-    console.error('❌ Validation Failed: Invalid JSON Structure', parsed.error.format());
+    console.error('❌ Validation Failed: Invalid JSON Structure', JSON.stringify(parsed.error.format(), null, 2));
     return;
   }
 
@@ -71,6 +71,12 @@ export async function ingestPortfolio(jsonPayload: any) {
     try {
       console.log(`Processing project: ${project.slug}...`);
       
+      if (isDryRun) {
+        console.log(`✅ [DRY RUN] Would upsert project: ${project.slug}`);
+        updated++;
+        continue;
+      }
+
       // 1. Upsert Project
       const { error: projErr } = await supabase.from('portfolio_entries').upsert({
         slug: project.slug,
@@ -88,13 +94,11 @@ export async function ingestPortfolio(jsonPayload: any) {
         seo_title: project.seo_title,
         seo_description: project.seo_description,
         credits: project.credits,
-        // In a real environment, we would upload to storage and fetch the internal ID here.
-        // For now, we assume the DB logic handles URLs or we create project_assets first.
       }, { onConflict: 'slug' });
 
       if (projErr) throw projErr;
 
-      // Log success (idempotent, we count upserts as updated for simplicity if we don't query first)
+      // Log success
       updated++;
       console.log(`✅ Upserted project: ${project.slug}`);
 
@@ -105,4 +109,21 @@ export async function ingestPortfolio(jsonPayload: any) {
   }
 
   console.log(`\nIngestion Summary:\nCreated/Updated: ${updated}\nFailed: ${failed}`);
+}
+
+// CLI Execution Support
+if (require.main === module) {
+  const fs = require('fs');
+  const path = require('path');
+  const args = process.argv.slice(2);
+  const isDryRun = args.includes('--dry-run');
+  const fileArg = args.find(a => !a.startsWith('--'));
+
+  if (!fileArg) {
+    console.error('Usage: npx tsx scripts/ingest_portfolio.ts <path-to-json> [--dry-run]');
+    process.exit(1);
+  }
+
+  const payload = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), fileArg), 'utf-8'));
+  ingestPortfolio(payload, isDryRun);
 }

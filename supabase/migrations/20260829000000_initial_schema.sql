@@ -2,9 +2,11 @@
 -- Requires uuid-ossp extension (usually enabled by default in Supabase)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- 1. Organizations (Multi-tenant foundation)
 CREATE TABLE organizations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -12,7 +14,7 @@ CREATE TABLE organizations (
 
 -- 2. Projects (Internal Business Entity)
 CREATE TABLE projects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'lead' CHECK (status IN ('lead', 'proposal', 'active', 'completed', 'archived')),
@@ -23,7 +25,7 @@ CREATE INDEX idx_projects_organization_id ON projects(organization_id);
 
 -- 3. Project Rooms
 CREATE TABLE project_rooms (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     slug TEXT NOT NULL,
@@ -38,7 +40,7 @@ CREATE INDEX idx_project_rooms_project_id_order ON project_rooms(project_id, dis
 
 -- 4. Project Assets (Storage-Aware)
 CREATE TABLE project_assets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     room_id UUID REFERENCES project_rooms(id) ON DELETE SET NULL,
@@ -61,7 +63,7 @@ CREATE INDEX idx_project_assets_project_visibility ON project_assets(project_id,
 
 -- 5. Project Asset Pairs (Before/After)
 CREATE TABLE project_asset_pairs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     before_asset_id UUID NOT NULL REFERENCES project_assets(id) ON DELETE CASCADE,
     after_asset_id UUID NOT NULL REFERENCES project_assets(id) ON DELETE CASCADE,
@@ -71,7 +73,7 @@ CREATE TABLE project_asset_pairs (
 
 -- 6. Portfolio Entries (Public Curated Storytelling)
 CREATE TABLE portfolio_entries (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     slug TEXT NOT NULL,
@@ -100,7 +102,7 @@ CREATE INDEX idx_portfolio_entries_status ON portfolio_entries(status);
 
 -- 7. Portfolio Sections (Dynamic Page Layouts)
 CREATE TABLE portfolio_sections (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     portfolio_entry_id UUID NOT NULL REFERENCES portfolio_entries(id) ON DELETE CASCADE,
     section_type TEXT NOT NULL CHECK (section_type IN ('intro', 'full_bleed_image', 'image_grid', 'room', 'before_after', 'text', 'quote', 'materials', 'floor_plan', 'video', 'render_vs_built', 'gallery', 'testimonial')),
     title TEXT,
@@ -114,7 +116,7 @@ CREATE INDEX idx_portfolio_sections_entry_order ON portfolio_sections(portfolio_
 
 -- 8. Portfolio Entry Assets (Join Table)
 CREATE TABLE portfolio_entry_assets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     portfolio_entry_id UUID NOT NULL REFERENCES portfolio_entries(id) ON DELETE CASCADE,
     asset_id UUID NOT NULL REFERENCES project_assets(id) ON DELETE CASCADE,
     section_id UUID REFERENCES portfolio_sections(id) ON DELETE SET NULL,
@@ -126,7 +128,7 @@ CREATE TABLE portfolio_entry_assets (
 
 -- 9. Services
 CREATE TABLE services (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     slug TEXT NOT NULL,
     title TEXT NOT NULL,
@@ -139,7 +141,7 @@ CREATE TABLE services (
 
 -- 10. Articles
 CREATE TABLE articles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     slug TEXT NOT NULL,
     title TEXT NOT NULL,
@@ -156,7 +158,7 @@ CREATE TABLE articles (
 
 -- 11. Testimonials
 CREATE TABLE testimonials (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     client_name TEXT NOT NULL,
@@ -167,7 +169,7 @@ CREATE TABLE testimonials (
 
 -- 12. Leads
 CREATE TABLE leads (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
@@ -189,7 +191,7 @@ CREATE INDEX idx_leads_created_at ON leads(created_at);
 
 -- 13. Lead Touchpoints (Attribution)
 CREATE TABLE lead_touchpoints (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
     anonymous_session_id UUID NOT NULL,
     source TEXT,
@@ -209,7 +211,7 @@ CREATE INDEX idx_lead_touchpoints_session ON lead_touchpoints(anonymous_session_
 
 -- 14. Site Settings (Non-Sensitive)
 CREATE TABLE site_settings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     studio_name TEXT NOT NULL,
     public_email TEXT,
@@ -225,7 +227,7 @@ CREATE TABLE site_settings (
 
 -- 15. Consents
 CREATE TABLE consents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
     subject_type TEXT NOT NULL CHECK (subject_type IN ('client', 'vendor', 'lead', 'employee')),
