@@ -62,7 +62,7 @@ export const getSiteSettings = async (): Promise<SiteSettings> => {
       return FALLBACK_SETTINGS;
     }
 
-    return data as SiteSettings;
+    return (data as unknown) as SiteSettings;
   } catch (err) {
     console.error('Error fetching site_settings:', err);
     return FALLBACK_SETTINGS;

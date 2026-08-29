@@ -25,15 +25,17 @@ async function inspect() {
     const { data: entries, error: entriesErr } = await supabase.from('portfolio_entries').select('id').limit(1);
 
     console.log('Tables check:');
-    if (leadsErr && leadsErr.code === '42P01') {
-      console.log('  - "leads" table does NOT exist.');
-    } else if (!leadsErr) {
+    if (leadsErr) {
+      if (leadsErr.code === '42P01') console.log('  - "leads" table does NOT exist.');
+      else console.log('  - "leads" table check error:', leadsErr);
+    } else {
       console.log('  - "leads" table exists.');
     }
 
-    if (entriesErr && entriesErr.code === '42P01') {
-      console.log('  - "portfolio_entries" table does NOT exist.');
-    } else if (!entriesErr) {
+    if (entriesErr) {
+      if (entriesErr.code === '42P01') console.log('  - "portfolio_entries" table does NOT exist.');
+      else console.log('  - "portfolio_entries" table check error:', entriesErr);
+    } else {
       console.log('  - "portfolio_entries" table exists.');
     }
     

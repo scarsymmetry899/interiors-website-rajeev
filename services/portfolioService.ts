@@ -41,7 +41,8 @@ export const getPublishedPortfolioEntries = async (): Promise<PortfolioEntry[]> 
   }
 
   // Map to the internal type (omitting asset joins for brevity in this query, can be expanded later)
-  return data.map(entry => ({
+  const rows = data as any[];
+  return rows.map(entry => ({
     ...entry,
     index_layout_variant: entry.index_layout_variant as any, // Typed internally
     hero_asset: undefined // We'd join portfolio_entry_assets in a real complete query
@@ -71,9 +72,10 @@ export const getPortfolioEntryBySlug = async (slug: string): Promise<PortfolioEn
     return null;
   }
 
+  const row = data as any;
   return {
-    ...data,
-    index_layout_variant: data.index_layout_variant as any,
-    sections: (data.portfolio_sections || []).sort((a: any, b: any) => a.display_order - b.display_order) as any,
+    ...row,
+    index_layout_variant: row.index_layout_variant as any,
+    sections: (row.portfolio_sections || []).sort((a: any, b: any) => a.display_order - b.display_order) as any,
   };
 };
