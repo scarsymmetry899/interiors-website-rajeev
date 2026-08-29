@@ -20,12 +20,16 @@ const formSchema = z.object({
   message: z.string().optional(),
 });
 
-import { createHash } from 'crypto';
+import { createHmac } from 'crypto';
 import { getPublicClient } from '@/services/supabase';
 
-// Helper to hash IP for privacy
+// Helper to hash IP for privacy using HMAC
 function hashIp(ip: string) {
-  return createHash('sha256').update(ip + process.env.NEXT_PUBLIC_SUPABASE_URL).digest('hex');
+  const secret = process.env.RATE_LIMIT_HASH_SECRET || 'fallback-secret-for-development';
+  if (process.env.NODE_ENV === 'production' && !process.env.RATE_LIMIT_HASH_SECRET) {
+    console.warn('WARNING: RATE_LIMIT_HASH_SECRET is missing in production.');
+  }
+  return createHmac('sha256', secret).update(ip).digest('hex');
 }
 
 export async function submitConsultationAction(prevState: any, formData: FormData) {
@@ -37,17 +41,20 @@ export async function submitConsultationAction(prevState: any, formData: FormDat
       return { success: false, error: 'Invalid submission.' };
     }
 
-    // 2. Rate Limiting check (Max 3 submissions per IP per hour)
+    // 2. Rate Limiting check
     const headerList = await headers();
     const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
     const ipHash = hashIp(ip);
     
+    const maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '3', 10);
+    const windowInterval = process.env.RATE_LIMIT_WINDOW || '1 hour';
+
     const supabase = getPublicClient();
     const { data: allowed, error: rateLimitErr } = await supabase.rpc('check_rate_limit', {
       p_ip_hash: ipHash,
       p_action: 'consultation_submission',
-      p_max_requests: 3,
-      p_window_interval: '1 hour'
+      p_max_requests: maxRequests,
+      p_window_interval: windowInterval
     });
 
     if (rateLimitErr) {

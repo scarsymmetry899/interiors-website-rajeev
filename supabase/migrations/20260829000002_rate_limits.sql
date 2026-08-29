@@ -25,6 +25,11 @@ AS $$
 DECLARE
     request_count INT;
 BEGIN
+    -- Cleanup strategy: Prune records older than 24 hours to prevent unbounded table growth.
+    -- Done inline for simplicity in low-traffic environments. 
+    -- Alternatively, could be a pg_cron job in high-traffic environments.
+    DELETE FROM rate_limits WHERE created_at < NOW() - INTERVAL '24 hours';
+
     -- Count recent requests
     SELECT COUNT(*)
     INTO request_count
